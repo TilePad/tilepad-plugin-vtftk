@@ -1,0 +1,35 @@
+[plugin]
+id = "com.jacobtread.tilepad.vtftk"
+name = "VTFTK"
+version = "0.0.1"
+authors = ["Jacobtread"]
+description = "Tilepad VTFTK plugin"
+
+[category]
+label = "VTFTK"
+icon = "images/vtftk.png"
+
+[[bin.native]]
+os = "windows"
+arch = "x64"
+path = "bin/plugin-windows-x64.exe"
+
+[[bin.native]]
+os = "windows"
+arch = "x86"
+path = "bin/plugin-windows-x86.exe"
+
+[[bin.native]]
+os = "linux"
+arch = "x64"
+path = "bin/plugin-linux-x64"
+
+[[bin.native]]
+os = "linux"
+arch = "x86"
+path = "bin/plugin-linux-x86"
+
+[actions.throw]
+label = "Throw"
+description = "Throw a specific item"
+inspector = "ui/connect.html"
