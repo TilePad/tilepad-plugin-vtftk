@@ -3,7 +3,7 @@
     "plugin": {
         "id": "com.jacobtread.tilepad.vtftk",
         "name": "VTFTK",
-        "version": "0.0.1",
+        "version": "0.1.0",
         "authors": ["Jacobtread"],
         "description": "Tilepad VTFTK plugin",
         "icon": "images/vtftk-logo.png"
