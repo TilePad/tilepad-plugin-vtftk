@@ -1,73 +1,21 @@
+use crate::{
+    action::Action,
+    messages::{InspectorMessageIn, InspectorMessageOut},
+    state::State,
+};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
-use std::{cell::RefCell, rc::Rc};
+use std::rc::Rc;
 use tilepad_plugin_sdk::{Inspector, Plugin, PluginSessionHandle, TileInteractionContext, tracing};
+use tokio::task::spawn_local;
 use uuid::Uuid;
 
 /// Properties for the plugin itself
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Properties {}
 
-/// Messages from the inspector
-#[derive(Debug, Deserialize, Serialize)]
-#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum InspectorMessageIn {
-    GetItems,
-}
-
-/// Messages to the inspector
-#[derive(Serialize)]
-#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum InspectorMessageOut {
-    Items { items: Vec<ItemModel> },
-}
-
 #[derive(Default)]
 pub struct VtftkPlugin {
     state: Rc<State>,
-}
-
-#[derive(Default)]
-pub struct State {
-    inspector: RefCell<Option<Inspector>>,
-}
-
-impl State {
-    fn set_inspector(&self, inspector: Option<Inspector>) {
-        *self.inspector.borrow_mut() = inspector;
-    }
-}
-
-impl VtftkPlugin {
-    pub fn new() -> Self {
-        Default::default()
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ItemModel {
-    pub id: Uuid,
-    pub name: String,
-    pub config: ItemConfig,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ItemConfig {
-    pub image: ItemImageConfig,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ItemImageConfig {
-    pub src: String,
-    pub pixelate: bool,
-}
-
-#[derive(Deserialize)]
-pub struct ItemWithSounds {
-    pub id: Uuid,
-    pub config: serde_json::Value,
-    pub impact_sounds_ids: Vec<Uuid>,
-    pub windup_sounds_ids: Vec<Uuid>,
 }
 
 impl Plugin for VtftkPlugin {
@@ -90,15 +38,20 @@ impl Plugin for VtftkPlugin {
             Err(_) => return,
         };
 
+        let state = self.state.clone();
+
         match message {
             InspectorMessageIn::GetItems => {
-                tokio::spawn(async move {
-                    let response = reqwest::get("http://localhost:58371/items").await.unwrap();
-                    let items: Vec<ItemModel> = response.json().await.unwrap();
+                spawn_local(async move {
+                    let items = match state.get_items().await {
+                        Ok(value) => value,
+                        Err(error) => {
+                            tracing::error!(?error, "failed to get items");
+                            return;
+                        }
+                    };
 
-                    inspector
-                        .send(InspectorMessageOut::Items { items })
-                        .unwrap();
+                    _ = inspector.send(InspectorMessageOut::Items { items });
                 });
             }
         }
@@ -113,8 +66,8 @@ impl Plugin for VtftkPlugin {
         let action_id = ctx.action_id.as_str();
         let action = match Action::from_action(action_id, properties) {
             Some(Ok(value)) => value,
-            Some(Err(cause)) => {
-                tracing::error!(?cause, ?action_id, "failed to deserialize action");
+            Some(Err(error)) => {
+                tracing::error!(?error, ?action_id, "failed to deserialize action");
                 return;
             }
             None => {
@@ -127,24 +80,26 @@ impl Plugin for VtftkPlugin {
             Action::ThrowItem(properties) => {
                 let item_id = match properties.item {
                     Some(value) => value,
+
+                    // Nothing to throw
                     None => return,
                 };
 
-                tokio::spawn(async move {
-                    let client = reqwest::Client::new();
+                let state = self.state.clone();
 
-                    // Load the items
-                    let items_response = client
-                        .post("http://localhost:58371/items/query-by-id")
-                        .json(&QueryById { ids: vec![item_id] })
-                        .send()
-                        .await
-                        .unwrap();
-                    let items_with_sounds: Vec<ItemWithSounds> =
-                        items_response.json().await.unwrap();
-                    let item_with_sound = items_with_sounds.first().unwrap();
+                spawn_local(async move {
+                    let item_with_sound = match state.get_item_by_id(item_id).await {
+                        Ok(Some(value)) => value,
+                        Ok(None) => return,
+                        Err(error) => {
+                            tracing::error!(?error, "failed to get item by id");
+                            return;
+                        }
+                    };
 
-                    // Collect all sound Ids
+                    tracing::debug!(?item_with_sound, "got item to throw");
+
+                    // Collect all sound IDs
                     let sound_ids = item_with_sound
                         .impact_sounds_ids
                         .iter()
@@ -152,66 +107,23 @@ impl Plugin for VtftkPlugin {
                         .copied()
                         .collect::<Vec<Uuid>>();
 
-                    // Load the sounds
-                    let sounds_response = client
-                        .post("http://localhost:58371/sounds/query-by-id")
-                        .json(&QueryById { ids: sound_ids })
-                        .send()
-                        .await
-                        .unwrap();
-                    let sounds: Vec<serde_json::Value> = sounds_response.json().await.unwrap();
+                    tracing::debug!(?sound_ids, "sound ids to load");
 
-                    client
-                        .post("http://localhost:58371/overlay/events")
-                        .json(&json!({
-                            "type": "ThrowItem",
-                            "items": {
-                                "items": [
-                                    {
-                                        "id": item_with_sound.id,
-                                        "config": item_with_sound.config,
-                                        "impact_sound_ids": item_with_sound.impact_sounds_ids,
-                                        "windup_sound_ids": item_with_sound.windup_sounds_ids,
-                                    }
-                                ],
-                                "sounds": sounds
-                            },
-                            "config": {
-                                "type": "All",
-                                "amount": 1,
-                            }
-                        }))
-                        .send()
-                        .await
-                        .unwrap();
+                    let sounds = match state.get_sounds_by_id(sound_ids).await {
+                        Ok(value) => value,
+                        Err(error) => {
+                            tracing::error!(?error, "failed to get sounds by id");
+                            return;
+                        }
+                    };
+
+                    tracing::debug!(?sounds, "sounds");
+
+                    if let Err(error) = state.throw_item(item_with_sound, sounds).await {
+                        tracing::error!(?error, "failed to throw item");
+                    }
                 });
             }
         }
     }
-}
-
-#[derive(Serialize)]
-pub struct QueryById {
-    ids: Vec<Uuid>,
-}
-
-pub enum Action {
-    ThrowItem(ThrowItemProperties),
-}
-
-impl Action {
-    pub fn from_action(
-        action_id: &str,
-        properties: serde_json::Value,
-    ) -> Option<Result<Action, serde_json::Error>> {
-        Some(match action_id {
-            "throw_item" => serde_json::from_value(properties).map(Action::ThrowItem),
-            _ => return None,
-        })
-    }
-}
-
-#[derive(Deserialize)]
-pub struct ThrowItemProperties {
-    pub item: Option<Uuid>,
 }
