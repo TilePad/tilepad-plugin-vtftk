@@ -5,7 +5,8 @@
         "name": "VTFTK",
         "version": "0.0.1",
         "authors": ["Jacobtread"],
-        "description": "Tilepad VTFTK plugin"
+        "description": "Tilepad VTFTK plugin",
+        "icon": "images/vtftk-logo.png"
     },
     "category": {
         "label": "VTFTK",
