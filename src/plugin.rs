@@ -1,10 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{cell::RefCell, rc::Rc};
-use tilepad_plugin_sdk::{
-    inspector::Inspector, plugin::Plugin, protocol::TileInteractionContext,
-    session::PluginSessionHandle, tracing,
-};
+use tilepad_plugin_sdk::{Inspector, Plugin, PluginSessionHandle, TileInteractionContext, tracing};
 use uuid::Uuid;
 
 /// Properties for the plugin itself
@@ -74,18 +71,16 @@ pub struct ItemWithSounds {
 }
 
 impl Plugin for VtftkPlugin {
-    fn on_properties(&self, _session: &PluginSessionHandle, _properties: serde_json::Value) {}
-
-    fn on_inspector_open(&self, _session: &PluginSessionHandle, inspector: Inspector) {
+    fn on_inspector_open(&mut self, _session: &PluginSessionHandle, inspector: Inspector) {
         self.state.set_inspector(Some(inspector));
     }
 
-    fn on_inspector_close(&self, _session: &PluginSessionHandle, _inspector: Inspector) {
+    fn on_inspector_close(&mut self, _session: &PluginSessionHandle, _inspector: Inspector) {
         self.state.set_inspector(None);
     }
 
     fn on_inspector_message(
-        &self,
+        &mut self,
         _session: &PluginSessionHandle,
         inspector: Inspector,
         message: serde_json::Value,
@@ -110,7 +105,7 @@ impl Plugin for VtftkPlugin {
     }
 
     fn on_tile_clicked(
-        &self,
+        &mut self,
         _session: &PluginSessionHandle,
         ctx: TileInteractionContext,
         properties: serde_json::Value,

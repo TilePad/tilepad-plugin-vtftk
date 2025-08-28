@@ -3,6 +3,8 @@
     "Jacobtread",
     "obws",
     "serde",
-    "Tilepad"
+    "Tilepad",
+    "Vtftk",
+    "reqwest"
   ]
 }

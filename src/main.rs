@@ -1,34 +1,15 @@
 use plugin::VtftkPlugin;
-use tilepad_plugin_sdk::{
-    start_plugin, tracing,
-    tracing_subscriber::{self, EnvFilter},
-};
+use tilepad_plugin_sdk::{setup_tracing, start_plugin};
 use tokio::task::LocalSet;
 
 pub mod plugin;
 
 #[tokio::main(flavor = "current_thread")]
 async fn main() {
+    setup_tracing();
+
     let local_set = LocalSet::new();
+    let plugin = VtftkPlugin::new();
 
-    let filter = EnvFilter::from_default_env();
-    let subscriber = tracing_subscriber::fmt()
-        .compact()
-        .with_file(true)
-        .with_env_filter(filter)
-        .with_line_number(true)
-        .with_thread_ids(true)
-        .with_target(false)
-        .finish();
-
-    // use that subscriber to process traces emitted after this point
-    tracing::subscriber::set_global_default(subscriber).expect("failed to setup tracing");
-
-    local_set
-        .run_until(async move {
-            let plugin = VtftkPlugin::new();
-
-            start_plugin(plugin).await;
-        })
-        .await;
+    local_set.run_until(start_plugin(plugin)).await;
 }
