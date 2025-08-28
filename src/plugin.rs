@@ -11,7 +11,9 @@ use uuid::Uuid;
 
 /// Properties for the plugin itself
 #[derive(Debug, Deserialize, Serialize)]
-pub struct Properties {}
+pub struct Properties {
+    port: Option<u16>,
+}
 
 #[derive(Default)]
 pub struct VtftkPlugin {
@@ -19,6 +21,18 @@ pub struct VtftkPlugin {
 }
 
 impl Plugin for VtftkPlugin {
+    fn on_properties(&mut self, _session: &PluginSessionHandle, properties: serde_json::Value) {
+        let properties: Properties = match serde_json::from_value(properties) {
+            Ok(value) => value,
+            Err(error) => {
+                tracing::error!(?error, "failed to parse properties");
+                return;
+            }
+        };
+
+        self.state.set_port(properties.port.unwrap_or(8533));
+    }
+
     fn on_inspector_open(&mut self, _session: &PluginSessionHandle, inspector: Inspector) {
         self.state.set_inspector(Some(inspector));
     }
@@ -29,7 +43,7 @@ impl Plugin for VtftkPlugin {
 
     fn on_inspector_message(
         &mut self,
-        _session: &PluginSessionHandle,
+        session: &PluginSessionHandle,
         inspector: Inspector,
         message: serde_json::Value,
     ) {
@@ -53,6 +67,10 @@ impl Plugin for VtftkPlugin {
 
                     _ = inspector.send(InspectorMessageOut::Items { items });
                 });
+            }
+            InspectorMessageIn::PortChanged { port } => {
+                state.set_port(port);
+                _ = session.set_properties(Properties { port: Some(port) });
             }
         }
     }

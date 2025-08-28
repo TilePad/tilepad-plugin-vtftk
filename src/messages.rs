@@ -7,6 +7,8 @@ use crate::models::ItemModel;
 #[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum InspectorMessageIn {
     GetItems,
+
+    PortChanged { port: u16 },
 }
 
 /// Messages to the inspector

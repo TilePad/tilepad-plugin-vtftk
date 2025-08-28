@@ -1,101 +1,24 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="stylesheet" href="style.css" />
+    </head>
 
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="style.css">
-</head>
+    <body>
+        <a href="settings.html" class="settings">
+            <img class="settings-icon" src="../images/settings.svg" />
+        </a>
 
-<body>
-    <div class="tile-item">
-        <label class="tile-label" for="item">Item</label>
-        <select class="tile-select" name="item" id="item">
-            <option disabled value="">Loading...</option>
-        </select>
-        <p class="tile-description">Item to throw</p>
-    </div>
-</body>
+        <div class="tile-item">
+            <label class="tile-label" for="item">Item</label>
+            <select class="tile-select" name="item" id="item">
+                <option disabled value="">Loading...</option>
+            </select>
+            <p class="tile-description">Item to throw</p>
+        </div>
+    </body>
 
-<script>
-    const itemSelect = document.getElementById("item");
-
-    let properties;
-
-    // Request the current properties
-    tilepad.tile.getProperties()
-        // Handle properties received
-        .then((newProperties) => {
-            properties = newProperties;
-
-            // Request the list of profiles
-            tilepad.plugin.send({ type: "GET_ITEMS" })
-
-            // Ignore missing profile
-            if (!properties.item) return;
-
-            const selectedIndex = getOptionIndex(itemSelect, properties.item);
-            if (selectedIndex === -1) return;
-
-            // Set the current selected profile
-            itemSelect.selectedIndex = selectedIndex;
-        });
-
-    tilepad.plugin.onMessage((message) => {
-        switch (message.type) {
-            case "ITEMS": {
-                setSelectOptions(itemSelect, message.items, properties.item)
-                break;
-            }
-        }
-    })
-
-    // Handle changing the profile
-    itemSelect.onchange = (event) => {
-        const value = event.target.value;
-        tilepad.tile.setProperty("item", value,);
-    };
-
-
-    function setSelectOptions(selectEl, options, selectedValue) {
-        selectEl.innerHTML = "";
-
-        // Add default option
-        {
-            const defaultOption = document.createElement("option");
-            defaultOption.disabled = true;
-            defaultOption.value = "";
-            defaultOption.textContent = "None";
-            defaultOption.selected = true;
-            selectEl.options.add(defaultOption);
-        }
-
-        // Add real options
-        for (const option of options) {
-            const optionEl = document.createElement("option");
-            optionEl.value = option.id;
-            optionEl.textContent = option.name;
-            selectEl.options.add(optionEl);
-        }
-
-        if (selectedValue) {
-            const optionIndex = getOptionIndex(selectEl, selectedValue);
-            if (optionIndex !== -1) {
-                selectEl.selectedIndex = optionIndex;
-            }
-        }
-    }
-
-    function getOptionIndex(selectEl, value) {
-        for (let i = 0; i < selectEl.options.length; i++) {
-            let option = selectEl.options.item(i);
-            if (option === null) break;
-            if (option.value !== value) continue;
-            return i;
-        }
-
-        return -1
-    }
-</script>
-
+    <script src="throw.js" type="module"></script>
 </html>

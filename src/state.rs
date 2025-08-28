@@ -25,6 +25,10 @@ impl State {
         *self.inspector.borrow_mut() = inspector;
     }
 
+    pub fn set_port(&self, port: u16) {
+        self.port.set(port);
+    }
+
     pub async fn get_items(&self) -> anyhow::Result<Vec<ItemModel>> {
         let port = self.port.get();
         let response = reqwest::get(format!("http://127.0.0.1:{port}/items")).await?;
