@@ -5,7 +5,6 @@ use tilepad_plugin_sdk::{
     inspector::Inspector, plugin::Plugin, protocol::TileInteractionContext,
     session::PluginSessionHandle, tracing,
 };
-use tokio::{join, task::spawn_local};
 use uuid::Uuid;
 
 /// Properties for the plugin itself
@@ -75,9 +74,7 @@ pub struct ItemWithSounds {
 }
 
 impl Plugin for VtftkPlugin {
-    fn on_properties(&self, session: &PluginSessionHandle, properties: serde_json::Value) {
-        let session = session.clone();
-    }
+    fn on_properties(&self, _session: &PluginSessionHandle, _properties: serde_json::Value) {}
 
     fn on_inspector_open(&self, _session: &PluginSessionHandle, inspector: Inspector) {
         self.state.set_inspector(Some(inspector));
@@ -89,7 +86,7 @@ impl Plugin for VtftkPlugin {
 
     fn on_inspector_message(
         &self,
-        session: &PluginSessionHandle,
+        _session: &PluginSessionHandle,
         inspector: Inspector,
         message: serde_json::Value,
     ) {
@@ -97,8 +94,6 @@ impl Plugin for VtftkPlugin {
             Ok(value) => value,
             Err(_) => return,
         };
-
-        let session = session.clone();
 
         match message {
             InspectorMessageIn::GetItems => {
